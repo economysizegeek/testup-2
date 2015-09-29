@@ -19,7 +19,16 @@ module TestUp
   module TestCaseExtendable
 
     def test_methods
-      tests = public_instance_methods(true).grep(/^test_/i).sort
+      if respond_to?(:children)
+
+        tests = []
+        children.each do |child|
+          tests.concat(child.test_methods)
+        end
+      else
+        tests = public_instance_methods(true).grep(/^test_/i).sort
+
+      end
     end
 
   end # module TestCaseExtendable
