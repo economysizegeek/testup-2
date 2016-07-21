@@ -7,6 +7,7 @@
 
 
 module TestUp
+
   class TestDiscoverer
 
     # Error type used when loading the .RB files containing the test cases.
@@ -43,7 +44,7 @@ module TestUp
           # TODO: raise custom error and catch later for display in UI.
           raise "Duplicate testsuites: #{testsuite_name} - #{testsuite_path}"
         end
-
+       # puts "Looking at testsuite - #{testsuite_name}"
         testsuite = discover_testcases(testsuite_path)
         coverage = Coverage.new(testsuite_path)
         missing_tests = coverage.missing_tests(testsuite)
@@ -71,7 +72,8 @@ module TestUp
         end
         next if testcase.nil?
         next if testcase.test_methods.empty?
-        testcases[testcase] = testcase.test_methods
+        testcases[testcase.name] = testcase.test_methods
+       # puts "Adding to  testcases[#{testcase.name}", testcase.test_methods.join(",")
       end
       testcases
     end
@@ -96,6 +98,24 @@ module TestUp
       Dir.glob(testcase_filter)
     end
 
+    #Used to add to spec
+    # @param [Class] The base spec class
+    # @return [Class] The base spec class that has been extended
+
+    def extend_with_TestCaseExtendable(testcase)
+      unless testcase.singleton_class.ancestors.include?(TestCaseExtendable)
+        #   puts "Adding TestCaseExtenable to  #{testcase.name}"
+        testcase.extend(TestCaseExtendable)
+      end
+      if testcase.respond_to?(:children) && testcase.children.length > 0
+        testcase.children.collect { |child|
+          #   puts "Adding TestCaseExtenable to  #{child.name}"
+
+          extend_with_TestCaseExtendable(child) }
+      end
+      return(testcase)
+    end
+
     # @param [String] testcase_file
     # @return [Object|Nil] The TestUp::TestCase object.
     def load_testcase(testcase_file)
@@ -107,6 +127,9 @@ module TestUp
       remove_old_spec_tests(testcase_name)
       # Cache the current list of testcase classes. This will only work properly
       # for tests prefixed with TC_*
+
+      #puts "Before:", all_test_classes.join(",")
+      all_test_classes #Not sure why this has to run twice to work
       existing_test_classes = all_test_classes
       # Attempt to load the testcase so it can be inspected for testcases and
       # test methods. Any errors is wrapped up in a custom error type so it can
@@ -118,6 +141,7 @@ module TestUp
         warn format_load_backtrace(error)
         raise TestCaseLoadError.new(error)
       end
+
       # Ideally there should be one test case per test file and the name of the
       # file and test class should be the same.
       # Because some of our older tests didn't conform to that we must inspect
@@ -126,74 +150,44 @@ module TestUp
 
       new_test_classes = root_classes(new_classes)
 
-      if new_test_classes.empty?
-        # This happens if another test case loaded a test case with the same name.
-        # Our old todo section has sections like that.
-        warn "'#{testcase_name}' - No new test cases loaded."
-        #warn existing_test_classes.sort{|a,b|a.name<=>b.name}.join("\n")
-        return nil
-      elsif new_test_classes.size > 1
-        # NOTE: More than one test class is currently not supported.
-        # TODO(thomthom): Sub-classes will trigger this. Fix this.
-        warn "'#{testcase_name}' - " <<
-                 "More than one test class loaded: #{new_test_classes.join(', ')}"
-        return nil
-      end
-      testcase = new_test_classes.first
-      if testcase.ancestors.include?(Minitest::Spec)
-        puts "This test case is a spec", testcase
+
+      if new_test_classes.first && new_test_classes.first.ancestors.include?(Minitest::Spec)
+        testcase = new_test_classes.first
+        #   puts "This test case is a spec", testcase
         #DJE - Need to handle supporting a way to get the list of children/methods for it to use to tezt
-        puts "Methods",testcase.test_methods.join(",")
+        extend_with_TestCaseExtendable(testcase)
+        #Handle sub children
+      #  puts "Methods", testcase.test_methods.join(",")
       else
 
+        if new_test_classes.empty?
+          # This happens if another test case loaded a test case with the same name.
+          # Our old todo section has sections like that.
+          warn "'#{testcase_name}' - No new test cases loaded."
+          #warn existing_test_classes.sort{|a,b|a.name<=>b.name}.join("\n")
+          return nil
+        elsif new_test_classes.size > 1
+          # NOTE: More than one test class is currently not supported.
+          # TODO(thomthom): Sub-classes will trigger this. Fix this.
+          warn "'#{testcase_name}' - " <<
+                   "More than one test class loaded: #{new_test_classes.join(', ')}"
+          return nil
+        end
+        testcase = new_test_classes.first
+
+        # If the testcase class didn't inherit from TestUp::TestCase we need to
+        # ensure to extend it so the TestUp utility methods is availible.
+        unless testcase.singleton_class.ancestors.include?(TestCaseExtendable)
+          # TODO(thomthom): Hook this up to deprecation warning.
+          #warn "Invalid testcase: #{testcase} (#{testcase.ancestors.inspect})"
+          testcase.extend(TestCaseExtendable)
+        end
 
       end
-      # If the testcase class didn't inherit from TestUp::TestCase we need to
-      # ensure to extend it so the TestUp utility methods is availible.
-      unless testcase.singleton_class.ancestors.include?(TestCaseExtendable)
-        # TODO(thomthom): Hook this up to deprecation warning.
-        #warn "Invalid testcase: #{testcase} (#{testcase.ancestors.inspect})"
-        testcase.extend(TestCaseExtendable)
-      end
+
       testcase
     end
-    # def load_testcase(testcase_file)
-    #   testcase_name = File.basename(testcase_file, '.*')
-    #
-    #   # If the test has been loaded before try to undefine it so that test methods
-    #   # that has been renamed or removed doesn't linger. This will only work if
-    #   # the testcase file is named idential to the testcase class.
-    #   #In the case of specs - it should match in the main describe block
-    #   remove_old_tests(testcase_name.intern)
-    #   remove_old_spec_tests(testcase_name)
-    #   # Cache the current list of testcase classes.
-    #   existing_test_classes = all_test_classes
-    #   puts "Exsiting Test Classes = ", existing_test_classes.collect { |ek| ek.to_s }.join(",")
-    #   # Attempt to load the testcase so it can be inspected for testcases and
-    #   # test methods. Any errors is wrapped up in a custom error type so it can
-    #   # be caught further up and displayed in the UI.
-    #   testcase = nil
-    #   begin
-    #     load testcase_file
-    #     new_classes = all_test_classes - existing_test_classes
-    #     new_classes.each do |new_class|
-    #       if new_class.to_s === testcase_name.to_s
-    #         if !new_class.ancestors.include?(TestUp::TestCaseExtendable)
-    #           new_class.extend(TestUp::TestCaseExtendable)
-    #         end
-    #         puts "Found the testcase", new_class
-    #         testcase = new_class
-    #         break
-    #       end
-    #     end
-    #   rescue ScriptError, StandardError => error
-    #     warn "#{error.class} Loading #{testcase_name}"
-    #     warn format_load_backtrace(error)
-    #     raise TestCaseLoadError.new(error)
-    #   end
-    #
-    #   testcase
-    # end
+
 
     # @param [Array<Class>] klasses
     # @return [Array<Class>]
@@ -218,8 +212,13 @@ module TestUp
       ObjectSpace.each_object(Class) { |klass|
         next if klass.to_s.downcase.match("minitest::")
         next if klasses.collect { |k| k.to_s }.include?(klass.to_s)
+        if klass.ancestors.include?(MiniTest::Spec) && !klass.to_s.match("::")
+          klasses << klass
+        elsif klass.ancestors.include?(MiniTest::Test)
+          klasses << klass
 
-        klasses << klass if klass.ancestors.include?(MiniTest::Test) || klass.ancestors.include?(MiniTest::Spec)
+        end
+
       }
       klasses
     end
@@ -236,11 +235,6 @@ module TestUp
         Object.send(:remove_const, testcase)
         # Remove any previously loaded versions from MiniTest. Otherwise MiniTest
         # will keep running them along with the new ones.
-        MiniTest::Runnable.runnables.each { |klass|
-          if klass.to_s == testcase.to_s
-            puts "Going to remove #{klass.to_s}"
-          end
-        }
         MiniTest::Runnable.runnables.delete_if { |klass|
           klass.to_s == testcase.to_s
         }
@@ -250,14 +244,23 @@ module TestUp
     end
 
     def remove_old_spec_tests(testcase)
+     # puts "Thinking about revmoving #{testcase}"
+      klasses = []
       MiniTest::Runnable.runnables.each { |klass|
         if klass.to_s == testcase.to_s || klass.to_s.match("#{testcase.to_s}::")
-          puts "Going to remove #{klass.to_s}/#{testcase.to_s}"
+         # puts "Going to remove #{klass.to_s}/#{testcase.to_s}"
+          klasses << klass
         end
       }
-      MiniTest::Runnable.runnables.delete_if { |klass|
-        klass.to_s == testcase.to_s || klass.to_s.match("#{testcase.to_s}::")
-      }
+      MiniTest::Runnable.runnables.delete_if { |klass| klasses.include?(klass) }
+      klasses.each do |klass|
+        if Object.constants.include?(klass)
+          Object.send(:remove_const, klass)
+         # puts "Removing const"
+        end
+
+      end
+
       GC.start
 
       nil

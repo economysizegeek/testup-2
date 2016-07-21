@@ -1,4 +1,7 @@
 Add support for Spec Mini Test syntax
 Add support for recursively loading a directory
 Add way to easy reload the test lib itself :)
+Add support for Coverage in specs
+
+
 git submodule foreach git pull origin master

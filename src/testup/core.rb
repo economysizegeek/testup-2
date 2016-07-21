@@ -218,6 +218,7 @@ module TestUp
         paths = TestUp.settings[:paths_to_testsuites]
         test_discoverer = TestDiscoverer.new(paths)
         discoveries = test_discoverer.discover
+        puts " My discoveries", discoveries
       ensure
         progress.set_state(TaskbarProgress::NOPROGRESS)
       end

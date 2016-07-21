@@ -109,7 +109,25 @@ module TestUp
         progress = TaskbarProgress.new
         begin
           progress.set_state(TaskbarProgress::INDETERMINATE)
-          self.bridge.call(js_command, discoveries)
+          converted_discoveries = {}
+          discoveries.keys.each do |ts|
+            converted_discoveries[ts] = {}
+            test_suite = discoveries[ts]
+            converted_discoveries[ts] = test_suite
+
+            #converted_discoveries[ts][:testcases] = test_suite[:testcases].collect { |t| t.to_s}
+            #test_cases = test_suite[:testcases]
+           # new_test_cases = []
+            # test_cases.keys.each do |tc|
+            #
+            #   test_case = test_cases[tc]
+            #   test_methods  = test_case.collect{|test| test.to_s}
+            #   test_case[:testcases] = test_methods
+            #   converted_discoveries[ts][tc] = test_case
+            # end
+          end
+          puts "My converted discover", converted_discoveries
+          self.bridge.call(js_command, converted_discoveries)
         ensure
           progress.set_state(TaskbarProgress::NOPROGRESS)
         end
