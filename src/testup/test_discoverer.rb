@@ -104,6 +104,7 @@ module TestUp
       # that has been renamed or removed doesn't linger. This will only work if
       # the testcase file is named idential to the testcase class.
       remove_old_tests(testcase_name.intern)
+      remove_old_spec_tests(testcase_name)
       # Cache the current list of testcase classes. This will only work properly
       # for tests prefixed with TC_*
       existing_test_classes = all_test_classes
@@ -122,7 +123,9 @@ module TestUp
       # Because some of our older tests didn't conform to that we must inspect
       # what new classes was loaded.
       new_classes = all_test_classes - existing_test_classes
+
       new_test_classes = root_classes(new_classes)
+
       if new_test_classes.empty?
         # This happens if another test case loaded a test case with the same name.
         # Our old todo section has sections like that.
@@ -137,6 +140,14 @@ module TestUp
         return nil
       end
       testcase = new_test_classes.first
+      if testcase.ancestors.include?(Minitest::Spec)
+        puts "This test case is a spec", testcase
+        #DJE - Need to handle supporting a way to get the list of children/methods for it to use to tezt
+        puts "Methods",testcase.test_methods.join(",")
+      else
+
+
+      end
       # If the testcase class didn't inherit from TestUp::TestCase we need to
       # ensure to extend it so the TestUp utility methods is availible.
       unless testcase.singleton_class.ancestors.include?(TestCaseExtendable)
