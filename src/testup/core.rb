@@ -16,7 +16,7 @@ rescue Gem::LoadError
   gem 'minitest'
 end
 require 'minitest'
-
+require 'minitest/spec'
 
 module TestUp
 
