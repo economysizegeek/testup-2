@@ -100,41 +100,89 @@ module TestUp
     # @return [Object|Nil] The TestUp::TestCase object.
     def load_testcase(testcase_file)
       testcase_name = File.basename(testcase_file, '.*')
-
       # If the test has been loaded before try to undefine it so that test methods
       # that has been renamed or removed doesn't linger. This will only work if
       # the testcase file is named idential to the testcase class.
-      #In the case of specs - it should match in the main describe block
       remove_old_tests(testcase_name.intern)
-      remove_old_spec_tests(testcase_name)
-      # Cache the current list of testcase classes.
+      # Cache the current list of testcase classes. This will only work properly
+      # for tests prefixed with TC_*
       existing_test_classes = all_test_classes
-      puts "Exsiting Test Classes = ", existing_test_classes.collect { |ek| ek.to_s }.join(",")
       # Attempt to load the testcase so it can be inspected for testcases and
       # test methods. Any errors is wrapped up in a custom error type so it can
       # be caught further up and displayed in the UI.
-      testcase = nil
       begin
         load testcase_file
-        new_classes = all_test_classes - existing_test_classes
-        new_classes.each do |new_class|
-          if new_class.to_s === testcase_name.to_s
-            if !new_class.ancestors.include?(TestUp::TestCaseExtendable)
-              new_class.extend(TestUp::TestCaseExtendable)
-            end
-            puts "Found the testcase", new_class
-            testcase = new_class
-            break
-          end
-        end
       rescue ScriptError, StandardError => error
         warn "#{error.class} Loading #{testcase_name}"
         warn format_load_backtrace(error)
         raise TestCaseLoadError.new(error)
       end
-
+      # Ideally there should be one test case per test file and the name of the
+      # file and test class should be the same.
+      # Because some of our older tests didn't conform to that we must inspect
+      # what new classes was loaded.
+      new_classes = all_test_classes - existing_test_classes
+      new_test_classes = root_classes(new_classes)
+      if new_test_classes.empty?
+        # This happens if another test case loaded a test case with the same name.
+        # Our old todo section has sections like that.
+        warn "'#{testcase_name}' - No new test cases loaded."
+        #warn existing_test_classes.sort{|a,b|a.name<=>b.name}.join("\n")
+        return nil
+      elsif new_test_classes.size > 1
+        # NOTE: More than one test class is currently not supported.
+        # TODO(thomthom): Sub-classes will trigger this. Fix this.
+        warn "'#{testcase_name}' - " <<
+                 "More than one test class loaded: #{new_test_classes.join(', ')}"
+        return nil
+      end
+      testcase = new_test_classes.first
+      # If the testcase class didn't inherit from TestUp::TestCase we need to
+      # ensure to extend it so the TestUp utility methods is availible.
+      unless testcase.singleton_class.ancestors.include?(TestCaseExtendable)
+        # TODO(thomthom): Hook this up to deprecation warning.
+        #warn "Invalid testcase: #{testcase} (#{testcase.ancestors.inspect})"
+        testcase.extend(TestCaseExtendable)
+      end
       testcase
     end
+    # def load_testcase(testcase_file)
+    #   testcase_name = File.basename(testcase_file, '.*')
+    #
+    #   # If the test has been loaded before try to undefine it so that test methods
+    #   # that has been renamed or removed doesn't linger. This will only work if
+    #   # the testcase file is named idential to the testcase class.
+    #   #In the case of specs - it should match in the main describe block
+    #   remove_old_tests(testcase_name.intern)
+    #   remove_old_spec_tests(testcase_name)
+    #   # Cache the current list of testcase classes.
+    #   existing_test_classes = all_test_classes
+    #   puts "Exsiting Test Classes = ", existing_test_classes.collect { |ek| ek.to_s }.join(",")
+    #   # Attempt to load the testcase so it can be inspected for testcases and
+    #   # test methods. Any errors is wrapped up in a custom error type so it can
+    #   # be caught further up and displayed in the UI.
+    #   testcase = nil
+    #   begin
+    #     load testcase_file
+    #     new_classes = all_test_classes - existing_test_classes
+    #     new_classes.each do |new_class|
+    #       if new_class.to_s === testcase_name.to_s
+    #         if !new_class.ancestors.include?(TestUp::TestCaseExtendable)
+    #           new_class.extend(TestUp::TestCaseExtendable)
+    #         end
+    #         puts "Found the testcase", new_class
+    #         testcase = new_class
+    #         break
+    #       end
+    #     end
+    #   rescue ScriptError, StandardError => error
+    #     warn "#{error.class} Loading #{testcase_name}"
+    #     warn format_load_backtrace(error)
+    #     raise TestCaseLoadError.new(error)
+    #   end
+    #
+    #   testcase
+    # end
 
     # @param [Array<Class>] klasses
     # @return [Array<Class>]
