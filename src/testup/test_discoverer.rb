@@ -52,7 +52,7 @@ module TestUp
         testsuites[testsuite_name] = {
             :testcases => testsuite,
             :coverage => coverage.percent(missing_tests),
-            :missing_coverage => missing_tests
+            :missing_coverage => {} # DJE - turning this off for now missing_tests
         }
       end
       testsuites
@@ -123,6 +123,8 @@ module TestUp
       # If the test has been loaded before try to undefine it so that test methods
       # that has been renamed or removed doesn't linger. This will only work if
       # the testcase file is named idential to the testcase class.
+
+
       remove_old_tests(testcase_name.intern)
       remove_old_spec_tests(testcase_name)
       # Cache the current list of testcase classes. This will only work properly
@@ -141,7 +143,14 @@ module TestUp
         warn format_load_backtrace(error)
         raise TestCaseLoadError.new(error)
       end
+      puts "___________________________"
+      Puts "Minitest::VERSION"
+      puts "---------------------------"
+      MiniTest::Runnable.runnables.each { |klass|
 
+        puts "Runnable #{klass}"
+
+      }
       # Ideally there should be one test case per test file and the name of the
       # file and test class should be the same.
       # Because some of our older tests didn't conform to that we must inspect
@@ -244,11 +253,11 @@ module TestUp
     end
 
     def remove_old_spec_tests(testcase)
-     # puts "Thinking about revmoving #{testcase}"
+      puts "Thinking about revmoving #{testcase}"
       klasses = []
       MiniTest::Runnable.runnables.each { |klass|
         if klass.to_s == testcase.to_s || klass.to_s.match("#{testcase.to_s}::")
-         # puts "Going to remove #{klass.to_s}/#{testcase.to_s}"
+         puts "Going to remove #{klass.to_s}/#{testcase.to_s}"
           klasses << klass
         end
       }
@@ -256,7 +265,7 @@ module TestUp
       klasses.each do |klass|
         if Object.constants.include?(klass)
           Object.send(:remove_const, klass)
-         # puts "Removing const"
+          puts "Removing const"
         end
 
       end

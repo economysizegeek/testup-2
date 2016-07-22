@@ -112,8 +112,21 @@ module TestUp
           converted_discoveries = {}
           discoveries.keys.each do |ts|
             converted_discoveries[ts] = {}
+
             test_suite = discoveries[ts]
-            converted_discoveries[ts] = test_suite
+            test_suite.keys.each do  |tcs|
+              if tcs == :testcases
+                converted_discoveries[ts][tcs] = {}
+                test_suite[tcs].keys.each do |test_case_k|
+                  converted_discoveries[ts][tcs][test_case_k] = test_suite[tcs][test_case_k].collect {|tc| tc.to_s}
+                end
+              else
+                converted_discoveries[ts][tcs] = test_suite[tcs]
+              end
+
+            end
+
+            # converted_discoveries[ts] = test_suite
 
             #converted_discoveries[ts][:testcases] = test_suite[:testcases].collect { |t| t.to_s}
             #test_cases = test_suite[:testcases]

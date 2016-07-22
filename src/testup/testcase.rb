@@ -23,7 +23,7 @@ module TestUp
 
     def to_s
       if @test_case.spec?
-        "#{@test_case.name.split("::").last} - #{@test_method.to_s.gsub(/^test_[0-9]+_/, "")}"
+        "#{@test_case.name.split("::").last} #{@test_method.to_s.gsub(/^test_[0-9]+_/, "")}"
       else
         @test_method.to_s
       end
