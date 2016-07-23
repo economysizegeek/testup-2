@@ -44,7 +44,7 @@ module TestUp
           # TODO: raise custom error and catch later for display in UI.
           raise "Duplicate testsuites: #{testsuite_name} - #{testsuite_path}"
         end
-       # puts "Looking at testsuite - #{testsuite_name}"
+        # puts "Looking at testsuite - #{testsuite_name}"
         testsuite = discover_testcases(testsuite_path)
         coverage = Coverage.new(testsuite_path)
         missing_tests = coverage.missing_tests(testsuite)
@@ -73,7 +73,7 @@ module TestUp
         next if testcase.nil?
         next if testcase.test_methods.empty?
         testcases[testcase.name] = testcase.test_methods
-       # puts "Adding to  testcases[#{testcase.name}", testcase.test_methods.join(",")
+        # puts "Adding to  testcases[#{testcase.name}", testcase.test_methods.join(",")
       end
       testcases
     end
@@ -123,15 +123,16 @@ module TestUp
       # If the test has been loaded before try to undefine it so that test methods
       # that has been renamed or removed doesn't linger. This will only work if
       # the testcase file is named idential to the testcase class.
-
+    #  puts "Before unloand",MiniTest::Runnable.runnables.join(",")
 
       remove_old_tests(testcase_name.intern)
       remove_old_spec_tests(testcase_name)
+  #    puts "After unloand",MiniTest::Runnable.runnables.join(",")
       # Cache the current list of testcase classes. This will only work properly
       # for tests prefixed with TC_*
 
       #puts "Before:", all_test_classes.join(",")
-      all_test_classes #Not sure why this has to run twice to work
+    #  all_test_classes #Not sure why this has to run twice to work
       existing_test_classes = all_test_classes
       # Attempt to load the testcase so it can be inspected for testcases and
       # test methods. Any errors is wrapped up in a custom error type so it can
@@ -143,20 +144,14 @@ module TestUp
         warn format_load_backtrace(error)
         raise TestCaseLoadError.new(error)
       end
-      puts "___________________________"
-      Puts "Minitest::VERSION"
-      puts "---------------------------"
-      MiniTest::Runnable.runnables.each { |klass|
+    #  puts "After load",MiniTest::Runnable.runnables.join(",")
 
-        puts "Runnable #{klass}"
-
-      }
       # Ideally there should be one test case per test file and the name of the
       # file and test class should be the same.
       # Because some of our older tests didn't conform to that we must inspect
       # what new classes was loaded.
-      new_classes = all_test_classes - existing_test_classes
-
+      new_classes = find_new_classes(existing_test_classes)
+      puts "New Classes foudn", new_classes.join(",")
       new_test_classes = root_classes(new_classes)
 
 
@@ -166,7 +161,7 @@ module TestUp
         #DJE - Need to handle supporting a way to get the list of children/methods for it to use to tezt
         extend_with_TestCaseExtendable(testcase)
         #Handle sub children
-      #  puts "Methods", testcase.test_methods.join(",")
+        #  puts "Methods", testcase.test_methods.join(",")
       else
 
         if new_test_classes.empty?
@@ -214,7 +209,17 @@ module TestUp
       filtered_backtrace = error.backtrace[0..index]
       error.message << "\n" << filtered_backtrace.join("\n")
     end
-
+    # @param [Array<Class>] exsting_classes
+    # @return [Array<Class>]
+    def find_new_classes(existing_classes)
+      current_classes = all_test_classes
+      new_classes = []
+      existing_classes_list = existing_classes.collect{|k| k.name}
+      current_classes.each do |current_class|
+        new_classes << current_class unless existing_classes_list.include?(current_class.name)
+      end
+      return new_classes
+    end
     # @return [Array<Class>]
     def all_test_classes
       klasses = []
@@ -253,25 +258,18 @@ module TestUp
     end
 
     def remove_old_spec_tests(testcase)
-      puts "Thinking about revmoving #{testcase}"
-      klasses = []
-      MiniTest::Runnable.runnables.each { |klass|
-        if klass.to_s == testcase.to_s || klass.to_s.match("#{testcase.to_s}::")
-         puts "Going to remove #{klass.to_s}/#{testcase.to_s}"
-          klasses << klass
-        end
-      }
-      MiniTest::Runnable.runnables.delete_if { |klass| klasses.include?(klass) }
-      klasses.each do |klass|
-        if Object.constants.include?(klass)
-          Object.send(:remove_const, klass)
-          puts "Removing const"
-        end
+      root_testcase = testcase.to_s.split("::").first
 
+      MiniTest::Runnable.runnables.each do |klass|
+        if klass.to_s == root_testcase || klass.to_s.match(/^#{root_testcase}::/)
+          puts "Going to remove #{klass.to_s}/ #{testcase.to_s}"
+        end
       end
+      MiniTest::Runnable.runnables.delete_if { |klass|
+        klass.to_s == root_testcase || klass.to_s.match(/^#{root_testcase}::/)
 
+      }
       GC.start
-
       nil
     end
 

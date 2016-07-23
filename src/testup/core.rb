@@ -17,7 +17,9 @@ rescue Gem::LoadError
 end
 require 'minitest'
 require 'minitest/spec'
-
+if (Minitest::VERSION <=> "5.9.0") == 1
+  raise ScriptError, "You need to install a modern version of Minitest"
+end
 module TestUp
 
   ### Constants ### ------------------------------------------------------------
