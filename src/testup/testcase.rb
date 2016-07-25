@@ -11,24 +11,10 @@ require File.join(__dir__, 'minitest_setup.rb')
 if defined?(Sketchup)
   require File.join(__dir__, 'sketchup_test_utilities.rb')
 end
-
+require File.join(__dir__, 'test_method_wrapper.rb')
 
 module TestUp
-  class TestMethodWrapper
-    def initialize(test_case, test_method)
-      @test_case = test_case
-      @test_method = test_method
 
-    end
-
-    def to_s
-      if @test_case.spec?
-        "#{@test_case.name.split("::").last} #{@test_method.to_s.gsub(/^test_[0-9]+_/, "")}"
-      else
-        @test_method.to_s
-      end
-    end
-  end
   # Methods used by the test discoverer.
   module TestCaseExtendable
     def spec?

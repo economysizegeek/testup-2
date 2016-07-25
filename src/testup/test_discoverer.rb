@@ -5,6 +5,7 @@
 #
 #-------------------------------------------------------------------------------
 
+require File.join(__dir__, 'testcase_spec_helper.rb')
 
 module TestUp
 
@@ -123,16 +124,15 @@ module TestUp
       # If the test has been loaded before try to undefine it so that test methods
       # that has been renamed or removed doesn't linger. This will only work if
       # the testcase file is named idential to the testcase class.
-    #  puts "Before unloand",MiniTest::Runnable.runnables.join(",")
+    #  puts "Before unloand",Minitest::Runnable.runnables.join(",")
 
       remove_old_tests(testcase_name.intern)
       remove_old_spec_tests(testcase_name)
-  #    puts "After unloand",MiniTest::Runnable.runnables.join(",")
+
       # Cache the current list of testcase classes. This will only work properly
       # for tests prefixed with TC_*
 
-      #puts "Before:", all_test_classes.join(",")
-    #  all_test_classes #Not sure why this has to run twice to work
+
       existing_test_classes = all_test_classes
       # Attempt to load the testcase so it can be inspected for testcases and
       # test methods. Any errors is wrapped up in a custom error type so it can
@@ -144,14 +144,12 @@ module TestUp
         warn format_load_backtrace(error)
         raise TestCaseLoadError.new(error)
       end
-    #  puts "After load",MiniTest::Runnable.runnables.join(",")
 
       # Ideally there should be one test case per test file and the name of the
       # file and test class should be the same.
       # Because some of our older tests didn't conform to that we must inspect
       # what new classes was loaded.
       new_classes = find_new_classes(existing_test_classes)
-      puts "New Classes foudn", new_classes.join(",")
       new_test_classes = root_classes(new_classes)
 
 
@@ -198,7 +196,11 @@ module TestUp
     def root_classes(klasses)
       klasses.select { |klass| !klass.name.include?('::') }
     end
-
+    # @param String - name of testcase class
+    # @return String
+    def root_testcase(testcase)
+      testcase.to_s.split("::").first
+    end
     # @param [Exception] error
     # @return [String]
     def format_load_backtrace(error)
@@ -213,32 +215,26 @@ module TestUp
     # @return [Array<Class>]
     def find_new_classes(existing_classes)
       current_classes = all_test_classes
-      new_classes = []
+
       existing_classes_list = existing_classes.collect{|k| k.name}
-      current_classes.each do |current_class|
-        new_classes << current_class unless existing_classes_list.include?(current_class.name)
+      return current_classes.select do |current_class|
+        !existing_classes_list.include?(current_class.name)
       end
-      return new_classes
+
     end
     # @return [Array<Class>]
     def all_test_classes
       klasses = []
-      ObjectSpace.each_object(Class) { |klass|
-        next if klass.to_s.downcase.match("minitest::")
-        next if klasses.collect { |k| k.to_s }.include?(klass.to_s)
-        if klass.ancestors.include?(MiniTest::Spec) && !klass.to_s.match("::")
+      Minitest::Runnable.runnables.each do |klass|
+        unless klass.to_s.match(/^Minitest/)
           klasses << klass
-        elsif klass.ancestors.include?(MiniTest::Test)
-          klasses << klass
-
         end
-
-      }
+      end
       klasses
     end
 
     # Remove the old testcase class so changes can be made without reloading
-    # SketchUp. This is done because MiniTest is made to be run as a traditional
+    # SketchUp. This is done because Minitest is made to be run as a traditional
     # Ruby script on a web server where the lifespan of objects isn't persistent
     # as it is in SketchUp.
     #
@@ -247,9 +243,9 @@ module TestUp
     def remove_old_tests(testcase)
       if Object.constants.include?(testcase)
         Object.send(:remove_const, testcase)
-        # Remove any previously loaded versions from MiniTest. Otherwise MiniTest
+        # Remove any previously loaded versions from Minitest. Otherwise Minitest
         # will keep running them along with the new ones.
-        MiniTest::Runnable.runnables.delete_if { |klass|
+        Minitest::Runnable.runnables.delete_if { |klass|
           klass.to_s == testcase.to_s
         }
         GC.start
@@ -258,16 +254,16 @@ module TestUp
     end
 
     def remove_old_spec_tests(testcase)
-      root_testcase = testcase.to_s.split("::").first
-
-      MiniTest::Runnable.runnables.each do |klass|
-        if klass.to_s == root_testcase || klass.to_s.match(/^#{root_testcase}::/)
-          puts "Going to remove #{klass.to_s}/ #{testcase.to_s}"
+      root = root_testcase(testcase)
+      Minitest::Runnable.runnables.each { |klass|
+        if klass.to_s == root.to_s || klass.to_s.match(/^#{root.to_s}::/)
+          klass.nuke_test_methods!
+          klass.wipe_children!
+          Minitest::Spec.remove_child!(klass)
         end
-      end
-      MiniTest::Runnable.runnables.delete_if { |klass|
-        klass.to_s == root_testcase || klass.to_s.match(/^#{root_testcase}::/)
-
+      }
+      Minitest::Runnable.runnables.delete_if { |klass|
+        klass.to_s == root.to_s || klass.to_s.match(/^#{root.to_s}::/)
       }
       GC.start
       nil

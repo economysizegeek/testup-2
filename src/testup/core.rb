@@ -35,7 +35,7 @@ module TestUp
   end
   # </debug>
 
-  PATH_IMAGES     = File.join(PATH, 'images').freeze
+  PATH_IMAGES = File.join(PATH, 'images').freeze
   PATH_JS_SCRIPTS = File.join(PATH, 'js').freeze
 
 
@@ -78,24 +78,24 @@ module TestUp
   tests_path = File.join(__dir__, '..', '..', 'tests')
   if defined?(Sketchup)
     defaults = {
-      :editor_application => Editor.get_default[0],
-      :editor_arguments => Editor.get_default[1],
-      :run_in_gui => true,
-      :verbose_console_tests => true,
-      :paths_to_testsuites => [
-        File.expand_path(File.join(tests_path, 'TestUp')),
-        File.expand_path(File.join(tests_path, 'SketchUp Ruby API'))
-      ]
+        :editor_application => Editor.get_default[0],
+        :editor_arguments => Editor.get_default[1],
+        :run_in_gui => true,
+        :verbose_console_tests => true,
+        :paths_to_testsuites => [
+            File.expand_path(File.join(tests_path, 'TestUp')),
+            File.expand_path(File.join(tests_path, 'SketchUp Ruby API'))
+        ]
     }
   elsif defined?(Layout)
     defaults = {
-      :editor_application => Editor.get_default[0],
-      :editor_arguments => Editor.get_default[1],
-      :run_in_gui => false,
-      :verbose_console_tests => true,
-      :paths_to_testsuites => [
-        # ...
-      ]
+        :editor_application => Editor.get_default[0],
+        :editor_arguments => Editor.get_default[1],
+        :run_in_gui => false,
+        :verbose_console_tests => true,
+        :paths_to_testsuites => [
+            # ...
+        ]
     }
   end
   @settings = Settings.new(PLUGIN_ID, defaults)
@@ -149,7 +149,7 @@ module TestUp
     # manifest.
     @num_tests_being_run = tests.size
     if self.run_tests(tests, testsuite)
-      #puts Reporter.results.pretty_inspect
+      puts Reporter.results.pretty_inspect
       @window.update_results(Reporter.results)
     else
       @window.update_results({})
@@ -161,6 +161,28 @@ module TestUp
     progress.set_value(num_tests_run, @num_tests_being_run)
     #puts "Test Progres: #{num_tests_run} of #{@num_tests_being_run}"
     nil
+  end
+
+  #Handles translating the patters for the different kinds of tests
+  def self.build_minitest_pattern(test_suite, test_pattern)
+    # If tests end with a `#` it means the whole test case should be run.
+    # Automatically fix the regex.
+ #   puts "Test Suite #{test_suite[:testcases]}"
+    puts "\n\nPatthen #{test_pattern}"
+    real_pattern = nil
+    test_suite[:testcases].keys.each do |ts_key|
+      test_suite[:testcases][ts_key].each do |test_method|
+      #  puts "#{ts_key}##{test_method.to_s.strip} vs #{test_pattern}"
+         if "#{ts_key}##{test_method.to_s.strip}" == test_pattern
+          real_pattern = test_method.minitest_pattern
+         end
+      end
+    end
+    if real_pattern =~ /\#$/
+      real_pattern << ".+"
+    end
+    puts "Real Pattner #{real_pattern}\n\n"
+    real_pattern
   end
 
   # @example Run a test case:
@@ -185,25 +207,25 @@ module TestUp
       return false
     end
     puts "Discovering tests...\n"
-    self.discover_tests
+    discoveries = self.discover_tests
+    # puts "tests: #{tests}"
+    # puts "discoveries :#{discoveries}"
     puts "Running test suite: #{testsuite}"
-    # If tests end with a `#` it means the whole test case should be run.
-    # Automatically fix the regex.
-    tests = tests.map { |pattern|
-      if pattern =~ /\#$/
-        pattern << ".+"
-      end
-      pattern
-    }
+
+    test_patterns = tests.map { |pattern|
+      build_minitest_pattern(discoveries[testsuite], pattern)
+
+    }.compact
     arguments = []
-    arguments << "-n /^(#{tests.join('|')})$/"
+    arguments << "-n \"/^(#{test_patterns.join('|')})$/\""
     arguments << '--verbose' if @settings[:verbose_console_tests]
     arguments << '--testup' if @settings[:run_in_gui]
     progress = TaskbarProgress.new
+    puts "Arguments: #{arguments.join(",")}"
     begin
       progress.set_state(TaskbarProgress::NORMAL)
       self.suppress_warning_dialogs {
-        MiniTest.run(arguments)
+        Minitest.run(arguments)
       }
     ensure
       progress.set_state(TaskbarProgress::NOPROGRESS)
@@ -220,7 +242,7 @@ module TestUp
         paths = TestUp.settings[:paths_to_testsuites]
         test_discoverer = TestDiscoverer.new(paths)
         discoveries = test_discoverer.discover
-        puts " My discoveries", discoveries
+          # puts " My discoveries", discoveries
       ensure
         progress.set_state(TaskbarProgress::NOPROGRESS)
       end

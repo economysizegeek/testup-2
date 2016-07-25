@@ -64,6 +64,8 @@ module TestUp
     # @param [Array<Hash>] results
     def update_results(results)
       Debugger.time("JS:TestUp.update_results") {
+        puts "______________________________________"
+        puts "Going to update? #{results}"
         @bridge.call('TestUp.update_results', results)
       }
     end
@@ -102,9 +104,10 @@ module TestUp
     end
 
     def discover_tests(first_run = false)
+      puts "Calling the discoverT_ests #{first_run}"
       discoveries = TestUp.discover_tests
       js_command = "TestUp.TestSuites.update"
-      js_command = "#{js_command}_first_run" if first_run
+      js_command = "#{js_command}_first_run"# if first_run
       Debugger.time("JS:#{js_command}") {
         progress = TaskbarProgress.new
         begin
