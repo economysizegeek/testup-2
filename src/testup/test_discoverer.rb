@@ -173,7 +173,7 @@ module TestUp
   end
 
   # Remove the old testcase class so changes can be made without reloading
-  # SketchUp. This is done because MiniTest is made to be run as a traditional
+  # SketchUp. This is done because Minitest is made to be run as a traditional
   # Ruby script on a web server where the lifespan of objects isn't persistent
   # as it is in SketchUp.
   #
@@ -182,9 +182,9 @@ module TestUp
   def remove_old_tests(testcase)
     if Object.constants.include?(testcase)
       Object.send(:remove_const, testcase)
-      # Remove any previously loaded versions from MiniTest. Otherwise MiniTest
+      # Remove any previously loaded versions from Minitest. Otherwise Minitest
       # will keep running them along with the new ones.
-      MiniTest::Runnable.runnables.delete_if { |klass|
+      Minitest::Runnable.runnables.delete_if { |klass|
         klass.to_s == testcase.to_s
       }
       GC.start

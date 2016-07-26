@@ -11,7 +11,7 @@ require File.join(__dir__, 'minitest_setup.rb')
 
 
 module TestUp
-class Reporter < MiniTest::StatisticsReporter
+class Reporter < Minitest::StatisticsReporter
 
   @@results = []
 

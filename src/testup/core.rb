@@ -16,7 +16,9 @@ rescue Gem::LoadError
   gem 'minitest'
 end
 require 'minitest'
-
+if (Minitest::VERSION <=> "5.9.0") == 1
+  raise ScriptError, "You need to install a modern version of Minitest"
+end
 
 module TestUp
 
@@ -201,7 +203,7 @@ module TestUp
     begin
       progress.set_state(TaskbarProgress::NORMAL)
       self.suppress_warning_dialogs {
-        MiniTest.run(arguments)
+        Minitest.run(arguments)
       }
     ensure
       progress.set_state(TaskbarProgress::NOPROGRESS)
