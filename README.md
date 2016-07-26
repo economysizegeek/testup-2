@@ -6,6 +6,13 @@ Requirements
 
 1. SketchUp 2014 or newer.
 
+Updating Submodule
+----------------------
+
+If you need to get a newer version of SKUI for this project
+
+'''git submodule foreach git pull origin master'''
+
 Setup for Contributing
 ----------------------
 
