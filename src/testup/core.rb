@@ -35,7 +35,7 @@ module TestUp
   end
   # </debug>
 
-  PATH_IMAGES     = File.join(PATH, 'images').freeze
+  PATH_IMAGES = File.join(PATH, 'images').freeze
   PATH_JS_SCRIPTS = File.join(PATH, 'js').freeze
 
 
@@ -78,24 +78,24 @@ module TestUp
   tests_path = File.join(__dir__, '..', '..', 'tests')
   if defined?(Sketchup)
     defaults = {
-      :editor_application => Editor.get_default[0],
-      :editor_arguments => Editor.get_default[1],
-      :run_in_gui => true,
-      :verbose_console_tests => true,
-      :paths_to_testsuites => [
-        File.expand_path(File.join(tests_path, 'TestUp')),
-        File.expand_path(File.join(tests_path, 'SketchUp Ruby API'))
-      ]
+        :editor_application => Editor.get_default[0],
+        :editor_arguments => Editor.get_default[1],
+        :run_in_gui => true,
+        :verbose_console_tests => true,
+        :paths_to_testsuites => [
+            File.expand_path(File.join(tests_path, 'TestUp')),
+            File.expand_path(File.join(tests_path, 'SketchUp Ruby API'))
+        ]
     }
   elsif defined?(Layout)
     defaults = {
-      :editor_application => Editor.get_default[0],
-      :editor_arguments => Editor.get_default[1],
-      :run_in_gui => false,
-      :verbose_console_tests => true,
-      :paths_to_testsuites => [
-        # ...
-      ]
+        :editor_application => Editor.get_default[0],
+        :editor_arguments => Editor.get_default[1],
+        :run_in_gui => false,
+        :verbose_console_tests => true,
+        :paths_to_testsuites => [
+            # ...
+        ]
     }
   end
   @settings = Settings.new(PLUGIN_ID, defaults)
@@ -105,6 +105,9 @@ module TestUp
 
   self.init_ui
 
+  def self.reload_code_before_tests
+    puts "I'm going to call the relaod0"
+  end
 
   def self.reset_settings
     # This will make the default values be used. (At least under Windows.)
@@ -143,6 +146,7 @@ module TestUp
       UI.beep
       return
     end
+    TestUp.reload_code_before_tests
     testsuite = @window.active_testsuite
     tests = @window.selected_tests
     # Number of tests is currently incorrect as the list include stubs from the

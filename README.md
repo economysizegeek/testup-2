@@ -6,6 +6,11 @@ Requirements
 
 1. SketchUp 2014 or newer.
 
+TODO
+------
+Add support for spec style
+Add a better way to have it reload code on run
+
 Updating Submodule
 ----------------------
 
